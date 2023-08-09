@@ -1,0 +1,38 @@
+/* static/style.css */
+.container {
+    display: flex;
+    justify-content: space-between;
+    margin: 20px;
+}
+
+.left-block {
+    width: 40%;
+    padding: 20px;
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 5px #aaa;
+}
+
+.right-block {
+    width: 55%;
+    padding: 20px;
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 5px #aaa;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+button {
+    margin: 5px;
+}
+
+a {
+    text-decoration: none;
+    color: #333;
+}
+
+li {
+    margin: 5px;
+}

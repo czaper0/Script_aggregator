@@ -1,0 +1,65 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+
+        socket.on('update_running_scripts', function(data) {
+            var runningList = document.getElementById('running-scripts-list');
+            runningList.innerHTML = '';
+            data.forEach(function(script) {
+                var li = document.createElement('li');
+                li.appendChild(document.createTextNode(script));
+                runningList.appendChild(li);
+            });
+        });
+
+        socket.on('update_scripts', function(data) {
+            var scriptsList = document.getElementById('scripts-list');
+            scriptsList.innerHTML = '';
+            data.forEach(function(script) {
+                var li = document.createElement('li');
+                var link = document.createElement('a');
+                link.setAttribute('href', '/script_result/' + script[0]);
+                link.appendChild(document.createTextNode(script[0] + ' (' + script[1] + ')'));
+                li.appendChild(link);
+                scriptsList.appendChild(li);
+            });
+        });
+
+        function executeScript(script) {
+            socket.emit('execute_script', script);
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="left-block">
+            <h2>Lista skryptów</h2>
+            <ul>
+                {% for script in available_scripts %}
+                <li><button onclick="executeScript('{{ script }}')">{{ script }}</button></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="right-block">
+            <h2>Lista wywołań skryptów</h2>
+            <ul id="running-scripts-list">
+                {% for script in running_scripts %}
+                <li>{{ script }}</li>
+                {% endfor %}
+            </ul>
+            <h2>Historia wywołań skryptów</h2>
+            <ul id="scripts-list">
+                {% for script, timestamp in scripts %}
+                <li><a href="{{ url_for('script_result', script=script) }}">{{ script }} ({{ timestamp }})</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

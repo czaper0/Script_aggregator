@@ -1,0 +1,17 @@
+<!-- templates/script_result.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h2>Wynik działania skryptu: {{ script }}</h2>
+        <pre>
+            {% for line in result_output %}
+            {{ line }}<br>
+            {% endfor %}
+        </pre>
+    </div>
+</body>
+</html>
