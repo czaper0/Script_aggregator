@@ -6,8 +6,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
         var socket = io.connect('http://' + document.domain + ':' + location.port);
-
-
+        
         socket.on('update_running_scripts', function(data) {
             var runningList = document.getElementById('running-scripts-list');
             runningList.innerHTML = '';
@@ -17,7 +16,7 @@
                 runningList.appendChild(li);
             });
         });
-
+        
         socket.on('update_scripts', function(data) {
             var scriptsList = document.getElementById('scripts-list');
             scriptsList.innerHTML = '';
@@ -30,10 +29,46 @@
                 scriptsList.appendChild(li);
             });
         });
-
+        
+        socket.on('script_executed', function(script) {
+            var scriptsList = document.getElementById('scripts-list');
+            var li = document.createElement('li');
+            var link = document.createElement('a');
+            link.setAttribute('href', '/script_result/' + script[0]);
+            link.appendChild(document.createTextNode(script[0] + ' (' + script[1] + ')'));
+            li.appendChild(link);
+            scriptsList.appendChild(li);
+        });
+        
         function executeScript(script) {
             socket.emit('execute_script', script);
         }
+        
+        function clearHistory() {
+            fetch('/clear_history', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    var scriptsList = document.getElementById('scripts-list');
+                    scriptsList.innerHTML = '';
+                }
+            });
+        }
+        
+        function killAllScripts() {
+            fetch('/kill_all_scripts', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    // Możesz dodać dodatkową logikę tutaj, jeśli chcesz
+                }
+            });
+        }
+        
+        socket.on('history_cleared', function() {
+            var scriptsList = document.getElementById('scripts-list');
+            scriptsList.innerHTML = '';
+        });
     </script>
 </head>
 <body>
@@ -48,12 +83,14 @@
         </div>
         <div class="right-block">
             <h2>Lista wywołań skryptów</h2>
+            <button onclick="killAllScripts()">Zatrzymaj wszystkie skrypty</button>
             <ul id="running-scripts-list">
                 {% for script in running_scripts %}
                 <li>{{ script }}</li>
                 {% endfor %}
             </ul>
             <h2>Historia wywołań skryptów</h2>
+            <button onclick="clearHistory()">Wyczyść historię</button>
             <ul id="scripts-list">
                 {% for script, timestamp in scripts %}
                 <li><a href="{{ url_for('script_result', script=script) }}">{{ script }} ({{ timestamp }})</a></li>

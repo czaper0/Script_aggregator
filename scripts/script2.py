@@ -1,2 +1,1 @@
-def main():
-    return 'Hello from script 2!'
+print('Wynik skryptu 2')
