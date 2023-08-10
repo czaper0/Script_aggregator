@@ -23,22 +23,24 @@
             data.forEach(function(script) {
                 var li = document.createElement('li');
                 var link = document.createElement('a');
-                link.setAttribute('href', '/script_result/' + script[0]);
+                link.setAttribute('href', '/script_result/' + encodeURIComponent(script[0]));
                 link.appendChild(document.createTextNode(script[0] + ' (' + script[1] + ')'));
                 li.appendChild(link);
                 scriptsList.appendChild(li);
             });
         });
         
-        socket.on('script_executed', function(script) {
+        socket.on('script_executed', function(data) {
             var scriptsList = document.getElementById('scripts-list');
             var li = document.createElement('li');
             var link = document.createElement('a');
-            link.setAttribute('href', '/script_result/' + script[0]);
-            link.appendChild(document.createTextNode(script[0] + ' (' + script[1] + ')'));
+            link.setAttribute('href', '/script_result/' + encodeURIComponent(data.script));
+            link.appendChild(document.createTextNode(data.script + ' (' + data.timestamp + ')'));
             li.appendChild(link);
-            scriptsList.appendChild(li);
+            scriptsList.insertBefore(li, scriptsList.firstChild);  // Dodaj na początek listy
         });
+        
+        
         
         function executeScript(script) {
             socket.emit('execute_script', script);
@@ -103,7 +105,7 @@
             <button onclick="clearHistory()">Wyczyść historię</button>
             <ul id="scripts-list">
                 {% for script, timestamp in scripts|reverse %}
-                <li><a href="{{ url_for('script_result', script=script) }}">{{ script }} ({{ timestamp }})</a></li>
+                <li><a href="{{ url_for('script_result', encoded_script=script|urlencode) }}">{{ script }} ({{ timestamp }})</a></li>
                 {% endfor %}
             </ul>
         </div>

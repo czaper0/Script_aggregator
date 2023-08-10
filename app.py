@@ -7,8 +7,11 @@ import asyncio
 import subprocess
 from datetime import datetime
 import threading
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from urllib.parse import quote_plus
 
 app = Flask(__name__)
+app.jinja_env.filters['urlencode'] = quote_plus
 socketio = SocketIO(app)
 
 scripts_path = os.path.join(app.root_path, 'scripts')
@@ -49,50 +52,37 @@ def get_available_scripts():
     return categories
 
 
-
-
 async def run_script(script_path):
     global scripts
     output = []
-
-    script_name = os.path.basename(script_path)  # Pobierz nazwę skryptu z pełnej ścieżki
-
     def capture_output(line):
         output.append(line)
-        socketio.emit('update_script_output', {'script': script_name, 'output': line})
-
-    print(f"Attempting to run {script_name}")  # Dodane do diagnozy
-
+        socketio.emit('update_script_output', {'script': script_path, 'output': line})
+    print(f"Attempting to run {script_path}")
     try:
         full_script_path = os.path.join(scripts_path, script_path)
-        process = await asyncio.create_subprocess_shell(f'python {full_script_path}',
+        process = await asyncio.create_subprocess_shell(f'python "{full_script_path}"',
                                                         stdout=asyncio.subprocess.PIPE,
                                                         stderr=asyncio.subprocess.STDOUT)
-        script_processes[script_name] = process
+        script_processes[script_path] = process
         async for line in process.stdout:
             capture_output(line.strip())
         await process.wait()
-
-        print(f"Finished running {script_name}")  # Dodane do diagnozy
-        print(f"Current running scripts: {running_scripts}")  # Dodane do diagnozy
-
+        print(f"Finished running {script_path}")
         # Usuń skrypt z listy "Lista wywołań skryptów"
-        if script_name in running_scripts:
-            print(f"Removing {script_name} from running_scripts")  # Dodane do diagnozy
-            running_scripts.remove(script_name)
+        if script_path in running_scripts:
+            running_scripts.remove(script_path)
             save_data()
             socketio.emit('update_running_scripts', running_scripts)
-
         # Dodaj skrypt do historii wywołań
-        scripts.append([script_name, datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+        scripts.append([script_path, datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
         save_data()
-        socketio.emit('script_executed', script_name)
+        socketio.emit('script_executed', {'script': script_path, 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
         socketio.emit('update_scripts', scripts)
-
     except Exception as e:
         capture_output(f'Error during script execution: {str(e)}')
+    script_results[script_path] = output
 
-    script_results[script_name] = output
 
 
 @app.route('/')
@@ -102,30 +92,32 @@ def index():
     return render_template('index.html', available_scripts=available_scripts, scripts=scripts, running_scripts=running_scripts)
 
 
-@app.route('/script_result/<script>')
-def script_result(script):
+import urllib
+@app.route('/script_result/<string:encoded_script>')
+def script_result(encoded_script):
+    script = urllib.parse.unquote(encoded_script)
     result_output = script_results.get(script, [])
     return render_template('script_result.html', script=script, result_output=result_output)
 
-@app.route('/kill_all_scripts', methods=['POST'])
-def kill_all_scripts():
-    for script_name, process in script_processes.items():
-        process.terminate()
-        if script_name in running_scripts:
-            running_scripts.remove(script_name)
-    script_processes.clear()
-    socketio.emit('update_running_scripts', running_scripts)
-    return jsonify(success=True)
 
 
 @socketio.on('execute_script')
-def execute_script(script_path):  # Zmienione z 'script' na 'script_path'
-    script_name = os.path.basename(script_path)
-    if script_name not in running_scripts:
+def execute_script(script_path):
+    if script_path not in running_scripts:
         threading.Thread(target=asyncio.run, args=(run_script(script_path),)).start()
-        running_scripts.append(script_name)
+        running_scripts.append(script_path)
         socketio.emit('update_running_scripts', running_scripts)
 
+
+@app.route('/kill_all_scripts', methods=['POST'])
+def kill_all_scripts():
+    for script_path, process in script_processes.items():
+        process.terminate()
+        if script_path in running_scripts:
+            running_scripts.remove(script_path)
+    script_processes.clear()
+    socketio.emit('update_running_scripts', running_scripts)
+    return jsonify(success=True)
 
 
 @app.route('/clear_history', methods=['POST'])
