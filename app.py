@@ -9,7 +9,14 @@ from datetime import datetime
 import threading
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from urllib.parse import quote_plus
+from werkzeug.urls import url_encode
 
+env = Environment(
+    loader=FileSystemLoader('templates'),
+    autoescape=select_autoescape(['html', 'xml']),
+    extensions=['jinja2.ext.loopcontrols']
+)
+env.filters['urlencode'] = url_encode
 app = Flask(__name__)
 app.jinja_env.filters['urlencode'] = quote_plus
 socketio = SocketIO(app)

@@ -31,14 +31,17 @@
         });
         
         socket.on('script_executed', function(data) {
-            var scriptsList = document.getElementById('scripts-list');
-            var li = document.createElement('li');
-            var link = document.createElement('a');
-            link.setAttribute('href', '/script_result/' + encodeURIComponent(data.script));
-            link.appendChild(document.createTextNode(data.script + ' (' + data.timestamp + ')'));
+            const scriptName = data.script;
+            const timestamp = data.timestamp;
+            const scriptsList = document.getElementById('scripts-list');
+            const li = document.createElement('li');
+            const link = document.createElement('a');
+            link.setAttribute('href', '/script_result/' + scriptName.replace(/\//g, '%2F'));
+            link.appendChild(document.createTextNode(scriptName + ' (' + timestamp + ')'));
             li.appendChild(link);
-            scriptsList.insertBefore(li, scriptsList.firstChild);  // Dodaj na początek listy
+            scriptsList.appendChild(li);
         });
+        
         
         
         
