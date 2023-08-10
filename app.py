@@ -33,52 +33,66 @@ def save_data():
         json.dump(data, f)
 
 def get_available_scripts():
-    script_files = [f for f in os.listdir(scripts_path) if f.endswith('.py')]
-    return script_files
+    categories = {}
+    for root, dirs, files in os.walk(scripts_path):
+        for file in files:
+            if file.endswith('.py'):
+                relative_path = os.path.relpath(root, scripts_path)
+                if relative_path == ".":
+                    category = "ogólne"
+                else:
+                    category = relative_path.replace(os.sep, '/')  # Użyj separatora '/' niezależnie od systemu
+                if category not in categories:
+                    categories[category] = []
+                full_path = os.path.join(relative_path, file).replace(os.sep, '/') if category != "ogólne" else file
+                categories[category].append(full_path)
+    return categories
 
-async def run_script(script):
+
+
+
+async def run_script(script_path):
     global scripts
     output = []
 
+    script_name = os.path.basename(script_path)  # Pobierz nazwę skryptu z pełnej ścieżki
+
     def capture_output(line):
         output.append(line)
-        socketio.emit('update_script_output', {'script': script, 'output': line})
+        socketio.emit('update_script_output', {'script': script_name, 'output': line})
 
-    print(f"Attempting to run {script}")  # Dodane do diagnozy
+    print(f"Attempting to run {script_name}")  # Dodane do diagnozy
 
     try:
-        script_path = os.path.join(scripts_path, script)
-        process = await asyncio.create_subprocess_shell(f'python {script_path}',
+        full_script_path = os.path.join(scripts_path, script_path)
+        process = await asyncio.create_subprocess_shell(f'python {full_script_path}',
                                                         stdout=asyncio.subprocess.PIPE,
                                                         stderr=asyncio.subprocess.STDOUT)
-        script_processes[script] = process
+        script_processes[script_name] = process
         async for line in process.stdout:
             capture_output(line.strip())
         await process.wait()
 
-        print(f"Finished running {script}")  # Dodane do diagnozy
+        print(f"Finished running {script_name}")  # Dodane do diagnozy
         print(f"Current running scripts: {running_scripts}")  # Dodane do diagnozy
 
         # Usuń skrypt z listy "Lista wywołań skryptów"
-        if script in running_scripts:
-            print(f"Removing {script} from running_scripts")  # Dodane do diagnozy
-            running_scripts.remove(script)
+        if script_name in running_scripts:
+            print(f"Removing {script_name} from running_scripts")  # Dodane do diagnozy
+            running_scripts.remove(script_name)
             save_data()
             socketio.emit('update_running_scripts', running_scripts)
 
         # Dodaj skrypt do historii wywołań
-        scripts.append([script, datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+        scripts.append([script_name, datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
         save_data()
-        socketio.emit('script_executed', script)
+        socketio.emit('script_executed', script_name)
         socketio.emit('update_scripts', scripts)
 
     except Exception as e:
         capture_output(f'Error during script execution: {str(e)}')
 
-    script_results[script] = output
-
-
-
+    script_results[script_name] = output
 
 
 @app.route('/')
@@ -95,20 +109,21 @@ def script_result(script):
 
 @app.route('/kill_all_scripts', methods=['POST'])
 def kill_all_scripts():
-    for script, process in script_processes.items():
+    for script_name, process in script_processes.items():
         process.terminate()
-        if script in running_scripts:
-            running_scripts.remove(script)
+        if script_name in running_scripts:
+            running_scripts.remove(script_name)
     script_processes.clear()
-    socketio.emit('update_running_scripts', running_scripts)  # Aktualizuj listę w czasie rzeczywistym
+    socketio.emit('update_running_scripts', running_scripts)
     return jsonify(success=True)
 
 
 @socketio.on('execute_script')
-def execute_script(script):
-    if script not in running_scripts:
-        running_scripts.append(script)  # Przenieś tę linię przed uruchomieniem skryptu w osobnym wątku
-        threading.Thread(target=asyncio.run, args=(run_script(script),)).start()
+def execute_script(script_path):  # Zmienione z 'script' na 'script_path'
+    script_name = os.path.basename(script_path)
+    if script_name not in running_scripts:
+        threading.Thread(target=asyncio.run, args=(run_script(script_path),)).start()
+        running_scripts.append(script_name)
         socketio.emit('update_running_scripts', running_scripts)
 
 

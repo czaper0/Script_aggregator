@@ -76,14 +76,24 @@
         <div class="left-block">
             <h2>Lista skryptów</h2>
             <ul>
-                {% for script in available_scripts %}
-                <li><button onclick="executeScript('{{ script }}')">{{ script }}</button></li>
-                {% endfor %}
+            {% for category, scripts_list in available_scripts.items() %}
+                <h3>{{ category }}</h3>
+                <ul>
+                    {% for script_path in scripts_list %}
+                        <li>
+                            <span class="script-name">{{ script_path.split('/')[-1] }}</span>
+                            <button class="play-button" data-script="{{ script_path }}">
+                                <i class="icon-play"></i>
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endfor %}
             </ul>
         </div>
         <div class="right-block">
             <h2>Aktywne skrypty</h2>
-            <button onclick="killAllScripts()">Zatrzymaj wszystkie skrypty</button>
+            <!--<button onclick="killAllScripts()">Zatrzymaj wszystkie skrypty</button>-->
             <ul id="running-scripts-list">
                 {% for script in running_scripts %}
                 <li>{{ script }}</li>
@@ -92,11 +102,37 @@
             <h2>Historia wywołań skryptów</h2>
             <button onclick="clearHistory()">Wyczyść historię</button>
             <ul id="scripts-list">
-                {% for script, timestamp in scripts %}
+                {% for script, timestamp in scripts|reverse %}
                 <li><a href="{{ url_for('script_result', script=script) }}">{{ script }} ({{ timestamp }})</a></li>
                 {% endfor %}
             </ul>
         </div>
     </div>
+    
+    
+    
+    
+    
+    
+    
+    <script>
+        // Dodaj nasłuchiwanie na kliknięcie przycisku "play"
+        document.querySelectorAll('.play-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const scriptName = this.getAttribute('data-script');
+                socket.emit('execute_script', scriptName);
+                this.innerHTML = '<i class="icon-running"></i>';  // Zmień ikonę na "running"
+            });
+        });
+    
+        // Nasłuchuj na zakończenie skryptu i przywróć ikonę "play"
+        socket.on('script_executed', function(script) {
+            const button = document.querySelector(`.play-button[data-script="${script}"]`);
+            if (button) {
+                button.innerHTML = '<i class="icon-play"></i>';
+            }
+        });
+    </script>
+
 </body>
 </html>
