@@ -36,7 +36,7 @@
             const scriptsList = document.getElementById('scripts-list');
             const li = document.createElement('li');
             const link = document.createElement('a');
-            link.setAttribute('href', '/script_result/' + scriptName.replace(/\//g, '%2F'));
+            link.setAttribute('href', '/script_result/' + encodeURIComponent(scriptName));
             link.appendChild(document.createTextNode(scriptName + ' (' + timestamp + ')'));
             li.appendChild(link);
             scriptsList.appendChild(li);
@@ -108,7 +108,7 @@
             <button onclick="clearHistory()">Wyczyść historię</button>
             <ul id="scripts-list">
                 {% for script, timestamp in scripts|reverse %}
-                <li><a href="{{ url_for('script_result', encoded_script=script|urlencode) }}">{{ script }} ({{ timestamp }})</a></li>
+                <li><a href="{{ url_for('script_result', encoded_script=script|urlencode) }}">{{ timestamp }} - {{ script }} </a></li>
                 {% endfor %}
             </ul>
         </div>
@@ -131,12 +131,14 @@
         });
     
         // Nasłuchuj na zakończenie skryptu i przywróć ikonę "play"
-        socket.on('script_executed', function(script) {
-            const button = document.querySelector(`.play-button[data-script="${script}"]`);
+        socket.on('script_executed', function(data) {
+            const scriptName = data.script;
+            const button = document.querySelector(`.play-button[data-script="${scriptName}"]`);
             if (button) {
                 button.innerHTML = '<i class="icon-play"></i>';
             }
         });
+        
     </script>
 
 </body>
