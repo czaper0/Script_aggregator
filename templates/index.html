@@ -24,7 +24,7 @@
                 var li = document.createElement('li');
                 var link = document.createElement('a');
                 link.setAttribute('href', '/script_result/' + encodeURIComponent(script[0]));
-                link.appendChild(document.createTextNode(script[0] + ' (' + script[1] + ')'));
+                link.appendChild(document.createTextNode(script[1] + ' - ' + script[0]));
                 li.appendChild(link);
                 scriptsList.appendChild(li);
             });
@@ -37,11 +37,10 @@
             const li = document.createElement('li');
             const link = document.createElement('a');
             link.setAttribute('href', '/script_result/' + encodeURIComponent(scriptName));
-            link.appendChild(document.createTextNode(scriptName + ' (' + timestamp + ')'));
+            link.appendChild(document.createTextNode(timestamp + ' - ' + scriptName));
             li.appendChild(link);
             scriptsList.appendChild(li);
         });
-        
         
         
         
