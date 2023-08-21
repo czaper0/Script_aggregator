@@ -10,6 +10,7 @@ import threading
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from urllib.parse import quote_plus, unquote_plus
 from werkzeug.urls import url_encode
+import shutil
 
 env = Environment(
     loader=FileSystemLoader('templates'),
@@ -164,6 +165,17 @@ def clear_history():
     scripts = []
     save_data()
     socketio.emit('history_cleared')
+    
+    # Usuwanie plików z katalogu results
+    results_dir = os.path.join(app.root_path, 'results')
+    for filename in os.listdir(results_dir):
+        file_path = os.path.join(results_dir, filename)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception as e:
+            print(f"Error deleting file {file_path}: {e}")
+
     return jsonify(success=True)
 
 if __name__ == '__main__':
