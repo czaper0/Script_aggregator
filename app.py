@@ -1,5 +1,5 @@
 # app.py
-import os
+import os, re
 import json
 from flask import Flask, render_template, request,jsonify
 from flask_socketio import SocketIO, emit
@@ -8,7 +8,7 @@ import subprocess
 from datetime import datetime
 import threading
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, unquote_plus
 from werkzeug.urls import url_encode
 
 env = Environment(
@@ -73,8 +73,11 @@ async def run_script(script_path):
                                                         stderr=asyncio.subprocess.STDOUT)
         script_processes[script_path] = process
         async for line in process.stdout:
-            capture_output(line.strip())
-        await process.wait()
+            decoded_line = line.decode('utf-8').strip()
+            capture_output(decoded_line)
+        exit_code = await process.wait()
+        if exit_code != 0:
+            raise Exception(f"Script exited with code {exit_code}")
         print(f"Finished running {script_path}")
         # Usuń skrypt z listy "Lista wywołań skryptów"
         if script_path in running_scripts:
@@ -88,7 +91,23 @@ async def run_script(script_path):
         socketio.emit('update_scripts', scripts)
     except Exception as e:
         capture_output(f'Error during script execution: {str(e)}')
+        # Dodajemy skrypt do historii wywołań z informacją o błędzie
+        scripts.append([script_path, datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " (Error)"])
+        save_data()
+        socketio.emit('script_executed', {'script': script_path, 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " (Error)"})
+        socketio.emit('update_scripts', scripts)
     script_results[script_path] = output
+    # zapisz wynik do pliku txt
+    results_dir = os.path.join(app.root_path, 'results')
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+    # Zmieniony sposób tworzenia nazwy pliku
+    safe_script_name = re.sub(r'\W+', '_', os.path.splitext(script_path)[0])
+    result_file_path = os.path.join(results_dir, f"{safe_script_name}.txt")
+
+    with open(result_file_path, 'w') as f:
+        for line in output:
+            f.write(line + '\n')
 
 
 
@@ -106,6 +125,18 @@ def script_result(encoded_script):
     result_output = script_results.get(script, [])
     return render_template('script_result.html', script=script, result_output=result_output)
 
+@app.route('/view_result/<string:script_name>')
+def view_result(script_name):
+    results_dir = os.path.join(app.root_path, 'results')
+    
+    # Zmieniony sposób tworzenia nazwy pliku
+    decoded_script_name = urllib.parse.unquote(script_name)
+    safe_script_name = re.sub(r'\W+', '_', os.path.splitext(decoded_script_name)[0])
+    result_file_path = os.path.join(results_dir, f"{safe_script_name}.txt")
+    
+    with open(result_file_path, 'r') as f:
+        content = f.read()
+    return render_template('view_result.html', content=content)
 
 
 @socketio.on('execute_script')

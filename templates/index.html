@@ -23,7 +23,7 @@
             data.forEach(function(script) {
                 var li = document.createElement('li');
                 var link = document.createElement('a');
-                link.setAttribute('href', '/script_result/' + encodeURIComponent(script[0]));
+                link.setAttribute('href', '/view_result/' + encodeURIComponent(script[0]));
                 link.appendChild(document.createTextNode(script[1] + ' - ' + script[0]));
                 li.appendChild(link);
                 scriptsList.appendChild(li);
@@ -36,7 +36,7 @@
             const scriptsList = document.getElementById('scripts-list');
             const li = document.createElement('li');
             const link = document.createElement('a');
-            link.setAttribute('href', '/script_result/' + encodeURIComponent(scriptName));
+            link.setAttribute('href', '/view_result/' + encodeURIComponent(scriptName));
             link.appendChild(document.createTextNode(timestamp + ' - ' + scriptName));
             li.appendChild(link);
             scriptsList.appendChild(li);
@@ -107,17 +107,15 @@
             <button onclick="clearHistory()">Wyczyść historię</button>
             <ul id="scripts-list">
                 {% for script, timestamp in scripts|reverse %}
-                <li><a href="{{ url_for('script_result', encoded_script=script|urlencode) }}">{{ timestamp }} - {{ script }} </a></li>
+                    {% if "error" in timestamp.lower() %}
+                        <li><a href="{{ url_for('view_result', script_name=script|urlencode) }}"><span class="error-text">{{ timestamp }} - {{ script }} </span></a></li>
+                    {% else %}
+                        <li><a href="{{ url_for('view_result', script_name=script|urlencode) }}">{{ timestamp }} - {{ script }} </a></li>
+                    {% endif %}
                 {% endfor %}
             </ul>
         </div>
     </div>
-    
-    
-    
-    
-    
-    
     
     <script>
         // Dodaj nasłuchiwanie na kliknięcie przycisku "play"

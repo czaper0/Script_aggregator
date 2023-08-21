@@ -93,3 +93,10 @@ li:hover {
     color: gray;
     font-size: medium;
 }
+
+.error-text {
+    color: rgb(255, 82, 82);
+}
+.success-text {
+    color: rgba(80, 255, 112, 0.904);
+}
