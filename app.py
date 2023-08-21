@@ -29,19 +29,16 @@ script_results = {}
 script_processes = {}
 
 def load_data():
-    global scripts, running_scripts
-    try:
-        with open('data.json', 'r') as f:
-            data = json.load(f)
-            scripts = data.get('scripts', [])
-            running_scripts = data.get('running_scripts', [])
-    except FileNotFoundError:
-        pass
-
-def save_data():
-    with open('data.json', 'w') as f:
-        data = {'scripts': scripts, 'running_scripts': running_scripts}
-        json.dump(data, f)
+    global scripts
+    results_dir = os.path.join(app.root_path, 'results')
+    scripts = []
+    if os.path.exists(results_dir):
+        for filename in os.listdir(results_dir):
+            match = re.match(r'(.+)_(\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2})\.txt', filename)
+            if match:
+                script_name, timestamp = match.groups()
+                scripts.append([script_name, timestamp.replace('_', ' ').replace('-', ':')])
+    scripts.sort(key=lambda x: x[1], reverse=True)  # Sortuj według daty i godziny
 
 def get_available_scripts():
     categories = {}
@@ -63,9 +60,11 @@ def get_available_scripts():
 async def run_script(script_path):
     global scripts
     output = []
+
     def capture_output(line):
         output.append(line)
         socketio.emit('update_script_output', {'script': script_path, 'output': line})
+
     print(f"Attempting to run {script_path}")
     try:
         full_script_path = os.path.join(scripts_path, script_path)
@@ -80,35 +79,37 @@ async def run_script(script_path):
         if exit_code != 0:
             raise Exception(f"Script exited with code {exit_code}")
         print(f"Finished running {script_path}")
-        # Usuń skrypt z listy "Lista wywołań skryptów"
-        if script_path in running_scripts:
-            running_scripts.remove(script_path)
-            save_data()
-            socketio.emit('update_running_scripts', running_scripts)
-        # Dodaj skrypt do historii wywołań
-        scripts.append([script_path, datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
-        save_data()
-        socketio.emit('script_executed', {'script': script_path, 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
-        socketio.emit('update_scripts', scripts)
     except Exception as e:
         capture_output(f'Error during script execution: {str(e)}')
         # Dodajemy skrypt do historii wywołań z informacją o błędzie
         scripts.append([script_path, datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " (Error)"])
-        save_data()
-        socketio.emit('script_executed', {'script': script_path, 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " (Error)"})
+    finally:
+        # Usuń skrypt z listy "Lista wywołań skryptów"
+        if script_path in running_scripts:
+            running_scripts.remove(script_path)
+            socketio.emit('update_running_scripts', running_scripts)
+        # Dodaj skrypt do historii wywołań (jeśli nie było błędu)
+        if not any(script[0] == script_path and "Error" in script[1] for script in scripts):
+            scripts.append([script_path, datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+        socketio.emit('script_executed', {'script': script_path, 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
         socketio.emit('update_scripts', scripts)
+
     script_results[script_path] = output
     # zapisz wynik do pliku txt
     results_dir = os.path.join(app.root_path, 'results')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
     # Zmieniony sposób tworzenia nazwy pliku
+    timestamp_str = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
     safe_script_name = re.sub(r'\W+', '_', os.path.splitext(script_path)[0])
-    result_file_path = os.path.join(results_dir, f"{safe_script_name}.txt")
+    result_file_name = f"{safe_script_name}_{timestamp_str}.txt"
+    result_file_path = os.path.join(results_dir, result_file_name)
+
 
     with open(result_file_path, 'w') as f:
         for line in output:
             f.write(line + '\n')
+
 
 
 
@@ -163,7 +164,6 @@ def kill_all_scripts():
 def clear_history():
     global scripts
     scripts = []
-    save_data()
     socketio.emit('history_cleared')
     
     # Usuwanie plików z katalogu results

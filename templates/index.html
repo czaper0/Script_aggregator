@@ -108,9 +108,9 @@
             <ul id="scripts-list">
                 {% for script, timestamp in scripts|reverse %}
                     {% if "error" in timestamp.lower() %}
-                        <li><a href="{{ url_for('view_result', script_name=script|urlencode) }}"><span class="error-text">{{ timestamp }} - {{ script }} </span></a></li>
+                        <li><a href="{{ url_for('view_result', script_name=(script + '_' + timestamp.replace('-', '_').replace(':', '_').replace(' ', '_'))|urlencode) }}"><span class="error-text">{{ timestamp }} - {{ script }} </span></a></li>
                     {% else %}
-                        <li><a href="{{ url_for('view_result', script_name=script|urlencode) }}">{{ timestamp }} - {{ script }} </a></li>
+                        <li><a href="{{ url_for('view_result', script_name=(script + '_' + timestamp.replace('-', '_').replace(':', '_').replace(' ', '_'))|urlencode) }}">{{ timestamp }} - {{ script }} </a></li>
                     {% endif %}
                 {% endfor %}
             </ul>
